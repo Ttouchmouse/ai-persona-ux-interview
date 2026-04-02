@@ -15,8 +15,8 @@ export function ChatInput() {
     image, persona, messages,
     addMessage, updateLastMessage,
     isStreaming, setStreaming,
-    initialQuestions,
-    setInitialQuestions, setIsGeneratingInitialQuestions, clearInitialQuestions,
+    showInitialQuestions,
+    setInitialQuestions, setShowInitialQuestions, setIsGeneratingInitialQuestions, clearInitialQuestions,
     clearFollowUpQuestions,
     setIsGeneratingFollowUp,
     setFollowUpQuestions,
@@ -48,13 +48,19 @@ export function ChatInput() {
       });
   }, [image]); // Only watch image — intentionally excludes messages to avoid re-triggering
 
-  const handleSend = async (overrideMessage?: string) => {
+  const handleSend = async (overrideMessage?: string, meta?: { source?: string }) => {
     const textToSend = overrideMessage || inputValue.trim();
     if (!textToSend || !image || isStreaming) return;
 
-    // Clear initial questions on first send
-    if (messages.length === 0 && initialQuestions.length > 0) {
-      clearInitialQuestions();
+    // Use explicit source metadata — never infer from stale closure state
+    const isInitialQuestionSend = meta?.source === 'initial';
+    console.log("send start", {
+      isInitialQuestionSend,
+      showInitialQuestions: useStore.getState().showInitialQuestions,
+    });
+
+    if (isInitialQuestionSend) {
+      setShowInitialQuestions(false);
     }
 
     setInputValue('');
@@ -89,6 +95,11 @@ export function ChatInput() {
           updateLastMessage(accumulatedText);
         }
       );
+
+      console.log("after first response", {
+        showInitialQuestions: useStore.getState().showInitialQuestions,
+        followUpCount: useStore.getState().followUpQuestions.length,
+      });
 
       // Fire and forget follow-up questions generation
       const currentCall = ++callId;
@@ -142,9 +153,9 @@ export function ChatInput() {
 
   useEffect(() => {
     const handleQuickPrompt = (e: any) => {
-      const { prompt, autoSend } = e.detail;
+      const { prompt, source, autoSend } = e.detail;
       if (autoSend) {
-        handleSend(prompt);
+        handleSend(prompt, { source });
       } else {
         setInputValue(prompt);
         // We could also run focus() if we had a ref on the textarea
