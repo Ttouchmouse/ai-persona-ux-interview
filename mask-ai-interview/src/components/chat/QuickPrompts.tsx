@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useStore } from '../../store/useStore.ts';
 
 const DEFAULT_PROMPTS = [
